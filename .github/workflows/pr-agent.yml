@@ -20,10 +20,12 @@ jobs:
       - name: Qodo Merge action
         uses: Codium-ai/pr-agent@main
         env:
-          CONFIG.AI_PROVIDER: "google"
-          GOOGLE.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          CONFIG.MODEL: "gemini/gemini-1.5-flash"
-          CONFIG.MODEL_TURBO: "gemini/gemini-1.5-flash"
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          OPENAI.API_BASE: "https://generativelanguage.googleapis.com/v1beta/openai"
+          OPENAI.API_TYPE: "openai"
+          CONFIG.MODEL: "gemini-1.5-flash"
+          CONFIG.MODEL_TURBO: "gemini-1.5-flash"
+          OPENAI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           github_action_config.auto_review: "true"
           github_action_config.auto_describe: "true"
           github_action_config.auto_improve: "true"
