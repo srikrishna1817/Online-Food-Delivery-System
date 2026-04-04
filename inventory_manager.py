@@ -24,4 +24,21 @@ class InventoryManager:
     def update_stock(self, item_name, quantity):
         self.stock[item_name] = quantity
         return f"Stock updated for {item_name} to {quantity} units"
+
+    def generate_report(self):
+        """Generate a report showing current stock levels.
+        
+        Returns:
+            A dictionary containing stock levels for all items
+        """
+        if not self.stock:
+            return {"message": "No items in inventory"}
+        
+        report = {}
+        for item_name, quantity in self.stock.items():
+            report[item_name] = {
+                "quantity": quantity,
+                "status": "Low Stock" if quantity < 10 else "In Stock"
+            }
+        return report
  
