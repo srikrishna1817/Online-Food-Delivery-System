@@ -28,7 +28,7 @@ class OrderService:
         return "Order not found"
 
     def update_order_status(self, order_id, new_status):
-        valid_statuses = ["Placed", "Preparing", "Out for Delivery", "Delivered"]
+        valid_statuses = ["Placed", "Preparing", "Out for Delivery", "Delivered", "Cancelled"]
         if new_status not in valid_statuses:
             return "Invalid status"
         for order in self.orders:
