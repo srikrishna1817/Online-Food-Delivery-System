@@ -25,7 +25,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from flask import Flask, send_from_directory
 
 # Import the DB initialiser and all route blueprints
-from database import init_db, migrate_db
+from database import init_db, migrate_db, get_db
+from database import migrate_users_role
 from auth     import auth_bp
 from menu     import menu_bp
 from orders   import orders_bp
@@ -90,10 +91,18 @@ def admin_page(filename):
     """Serve admin dashboard pages. (Does NOT conflict with /api/admin/ routes.)"""
     return send_from_directory(os.path.join(FRONTEND_DIR, 'admin'), filename)
 
+@app.route('/inventory/<path:filename>')
+def inventory_page(filename):
+    """Serve inventory manager dashboard pages."""
+    return send_from_directory(os.path.join(FRONTEND_DIR, 'inventory'), filename)
+
 # ── Entry Point ───────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     init_db()      # Create all tables on first run (safe to call every time)
     migrate_db()   # Add any new columns to existing databases (safe to repeat)
+    conn = get_db()
+    migrate_users_role(conn)   # Expand role CHECK to include 'inventory'
+    conn.close()
     print()
     print("=" * 54)
     print("   Online Food Delivery System")

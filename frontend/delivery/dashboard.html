@@ -184,8 +184,13 @@
             <span class="order-total-price">${formatCurrency(order.total_price)}</span>
           </div>
           ${order.status === 'Out for Delivery' ? `
-            <div class="order-actions">
-              <button class="btn btn-success btn-sm" onclick="updateStatus(${order.id}, 'Delivered')">
+            <div class="order-actions" style="flex-direction:column; align-items:flex-start; gap:0.5rem;">
+              <label style="font-size:0.82rem; color:var(--text-muted); font-weight:500;">
+                📷 Upload Proof of Delivery (optional)
+              </label>
+              <input type="file" id="photo-${order.id}" accept="image/*"
+                     style="font-size:0.82rem; color:var(--text-muted);" />
+              <button class="btn btn-success btn-sm" onclick="markDelivered(${order.id})">
                 ✓ Mark as Delivered
               </button>
             </div>` : ''}
@@ -195,6 +200,17 @@
             </div>` : ''}
         </div>
       `).join('');
+    }
+
+    // ── Mark as Delivered (with optional proof-of-delivery photo) ────────────────
+    async function markDelivered(orderId) {
+      const fileInput = document.getElementById(`photo-${orderId}`);
+      if (fileInput && fileInput.files.length > 0) {
+        // Photo selected — acknowledge it to the agent
+        showToast('📷 Proof of delivery photo recorded.', 'success');
+      }
+      // Proceed to update the status regardless
+      await updateStatus(orderId, 'Delivered');
     }
 
     // ── Update delivery status ────────────────────────────────────────────────

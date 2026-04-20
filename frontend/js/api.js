@@ -67,7 +67,7 @@ async function getCurrentUser() {
  * If the user is not logged in → redirect to /
  * If expectedRole is provided and does not match → redirect to /
  *
- * @param {string|null} expectedRole  - 'customer' | 'restaurant' | 'delivery' | 'admin' | null
+ * @param {string|null} expectedRole  - 'customer' | 'restaurant' | 'delivery' | 'admin' | 'inventory' | null
  * @returns {Promise<object|null>}      The user object, or null (after redirect)
  */
 async function requireAuth(expectedRole = null) {
@@ -96,6 +96,7 @@ function redirectToDashboard(role) {
         restaurant: '/restaurant/dashboard.html',
         delivery:   '/delivery/dashboard.html',
         admin:      '/admin/dashboard.html',
+        inventory:  '/inventory/dashboard.html',
     };
     window.location.href = routes[role] || '/';
 }

@@ -6,7 +6,7 @@ Seeds the database with demo users and a full menu.
 Run once before starting the server:
     python sample_data.py
 
-Creates 4 demo users (one of each role) and 12 menu items.
+Creates 5 demo users (one of each role) and 12 menu items.
 All demo user passwords are: password123
 """
 
@@ -49,6 +49,12 @@ DEMO_USERS = [
         'email':    'admin@demo.com',
         'password': 'password123',
         'role':     'admin',
+    },
+    {
+        'name':     'Inventory',
+        'email':    'inventory@demo.com',
+        'password': 'password123',
+        'role':     'inventory',
     },
 ]
 

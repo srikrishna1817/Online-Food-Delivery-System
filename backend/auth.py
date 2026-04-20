@@ -57,7 +57,7 @@ def register():
         if not str(data.get(field, '')).strip():
             return jsonify({'error': f'Field "{field}" is required.'}), 400
 
-    allowed_roles = ('customer', 'restaurant', 'delivery', 'admin')
+    allowed_roles = ('customer', 'restaurant', 'delivery', 'admin', 'inventory')
     if data['role'] not in allowed_roles:
         return jsonify({'error': f'Role must be one of: {list(allowed_roles)}'}), 400
 

@@ -44,7 +44,7 @@ def init_db():
     c = conn.cursor()
 
     # ── Users ────────────────────────────────────────────────────────────────
-    # Roles:  customer | restaurant | delivery | admin
+    # Roles:  customer | restaurant | delivery | admin | inventory
     c.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,7 +52,7 @@ def init_db():
             email    TEXT    NOT NULL UNIQUE,
             password TEXT    NOT NULL,          -- SHA-256 hex digest
             role     TEXT    NOT NULL DEFAULT 'customer'
-                     CHECK(role IN ('customer', 'restaurant', 'delivery', 'admin'))
+                     CHECK(role IN ('customer', 'restaurant', 'delivery', 'admin', 'inventory'))
         )
     """)
 
@@ -129,3 +129,53 @@ def migrate_db():
 
     conn.commit()
     conn.close()
+
+
+def migrate_users_role(conn):
+    """
+    SQLite does not support ALTER TABLE ... MODIFY COLUMN, so we cannot
+    simply update the CHECK constraint on an existing 'users' table.
+    Instead we recreate the table with the updated constraint and copy all data.
+    Safe to call repeatedly — detects whether the 'inventory' role is already allowed.
+    """
+    c = conn.cursor()
+
+    # Check if the inventory role is already permitted by testing a dry INSERT
+    # via a savepoint so we can roll it back without affecting the real session.
+    try:
+        c.execute("SAVEPOINT role_check")
+        c.execute(
+            "INSERT INTO users (name, email, password, role) VALUES ('_test', '_test@_', '_', 'inventory')"
+        )
+        # If we get here the constraint already allows 'inventory' — just roll back
+        c.execute("ROLLBACK TO SAVEPOINT role_check")
+        c.execute("RELEASE SAVEPOINT role_check")
+        return   # Nothing to do
+    except Exception:
+        c.execute("ROLLBACK TO SAVEPOINT role_check")
+        c.execute("RELEASE SAVEPOINT role_check")
+
+    # Recreate users table with updated CHECK constraint
+    print("[DB] Migration: updating users.role CHECK to include 'inventory'…")
+    c.executescript("""
+        PRAGMA foreign_keys = OFF;
+
+        CREATE TABLE IF NOT EXISTS users_new (
+            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            name     TEXT    NOT NULL,
+            email    TEXT    NOT NULL UNIQUE,
+            password TEXT    NOT NULL,
+            role     TEXT    NOT NULL DEFAULT 'customer'
+                     CHECK(role IN ('customer', 'restaurant', 'delivery', 'admin', 'inventory'))
+        );
+
+        INSERT INTO users_new SELECT id, name, email, password, role FROM users;
+
+        DROP TABLE users;
+        ALTER TABLE users_new RENAME TO users;
+
+        PRAGMA foreign_keys = ON;
+    """)
+    conn.commit()
+    print("[DB] Migration: users table updated.")
+

@@ -33,6 +33,14 @@
       <p class="page-subtitle">Fresh ingredients, amazing flavours — order in minutes</p>
     </div>
 
+    <!-- Search bar -->
+    <div style="margin-bottom:1rem;">
+      <input class="form-control" id="search-input" type="text"
+             placeholder="🔍 Search menu items…"
+             oninput="applyFilters()"
+             style="max-width:400px;" />
+    </div>
+
     <!-- Filter row: category tabs on left, Pure Veg toggle on right -->
     <div class="filter-row">
       <!-- Category filter tabs (populated dynamically) -->
@@ -171,15 +179,19 @@
       applyFilters();
     }
 
-    // ── Apply both filters (category + veg) and re-render ─────────────────────
+    // ── Apply both filters (category + veg + search) and re-render ──────────────
     function applyFilters() {
       let items = allMenuItems;
+      const searchText = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
 
       if (activeCategory !== 'all') {
         items = items.filter(i => i.category === activeCategory);
       }
       if (vegOnly) {
         items = items.filter(i => i.is_veg === 1);
+      }
+      if (searchText) {
+        items = items.filter(i => i.name.toLowerCase().includes(searchText));
       }
 
       renderMenu(items);
@@ -221,9 +233,14 @@
 
             <div class="menu-card-footer">
               <span class="menu-card-price">${formatCurrency(item.price)}</span>
-              <button class="btn btn-primary btn-sm" onclick="addToCart(${item.id}, '${escape(item.name)}', ${item.price})">
-                + Add
-              </button>
+              ${cart[item.id]
+                ? `<div class="qty-controls">
+                     <button class="qty-btn" onclick="changeQty(${item.id}, -1)">−</button>
+                     <span class="qty-value">${cart[item.id].quantity}</span>
+                     <button class="qty-btn" onclick="changeQty(${item.id},  1)">+</button>
+                   </div>`
+                : `<button class="btn btn-primary btn-sm" onclick="addToCart(${item.id}, '${escape(item.name)}', ${item.price})">+ Add</button>`
+              }
             </div>
           </div>
         </div>`;
@@ -239,6 +256,7 @@
         cart[id] = { name: decodedName, price, quantity: 1 };
       }
       updateCartUI();
+      applyFilters();   // re-render menu so card button updates to − qty +
       showToast(`${decodedName} added to cart!`, 'success');
     }
 
@@ -247,6 +265,7 @@
       cart[id].quantity += delta;
       if (cart[id].quantity <= 0) delete cart[id];
       updateCartUI();
+      applyFilters();   // re-render menu so card updates (back to + Add if qty reaches 0)
     }
 
     function updateCartUI() {

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuickBite — Inventory Manager</title>
+  <meta name="description" content="Inventory manager portal to monitor and manage stock levels." />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+  <!-- ── Navbar ────────────────────────────────────────────────────────────── -->
+  <nav class="navbar">
+    <a class="navbar-brand" href="#">
+      <span class="brand-icon">📦</span>
+      <span class="brand-name">Inventory Manager</span>
+    </a>
+    <div class="navbar-right">
+      <div class="user-pill">
+        <div class="user-avatar" id="user-avatar">I</div>
+        <span id="user-name">Loading…</span>
+      </div>
+      <button class="nav-link" onclick="logout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- ── Page Content ──────────────────────────────────────────────────────── -->
+  <main class="page-wrapper">
+
+    <div class="page-header flex justify-between items-center">
+      <div>
+        <h1 class="page-title">Stock Management</h1>
+        <p class="page-subtitle">Monitor stock levels and respond to low-stock alerts</p>
+      </div>
+      <button class="btn btn-secondary" onclick="loadStock()">↻ Refresh</button>
+    </div>
+
+    <!-- ── Stat Cards ────────────────────────────────────────────────────── -->
+    <div class="grid-4 section">
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-blue">📋</div>
+        <div><div class="stat-value" id="stat-total">—</div><div class="stat-label">Total Items</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-green">✅</div>
+        <div><div class="stat-value" id="stat-ok">—</div><div class="stat-label">Sufficient Stock</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-orange">⚠️</div>
+        <div><div class="stat-value" id="stat-low">—</div><div class="stat-label">Low Stock Alerts</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-purple">🚫</div>
+        <div><div class="stat-value" id="stat-out">—</div><div class="stat-label">Out of Stock</div></div>
+      </div>
+    </div>
+
+    <!-- ── Low Stock Alert Banner ─────────────────────────────────────────── -->
+    <div id="low-stock-banner" class="hidden"
+         style="background:rgba(251,146,60,0.12); border:1px solid rgba(251,146,60,0.4);
+                border-radius:10px; padding:0.85rem 1.2rem; margin-bottom:1.5rem;
+                color:#fb923c; font-size:0.9rem;">
+      ⚠️ <strong>Low Stock Alert:</strong> <span id="low-stock-names"></span>
+    </div>
+
+    <!-- ── Stock Table ─────────────────────────────────────────────────────── -->
+    <div class="section-title">📦 Inventory Stock Levels</div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Item Name</th>
+            <th>Category</th>
+            <th>Stock (units)</th>
+            <th>Status</th>
+            <th>Update Stock</th>
+          </tr>
+        </thead>
+        <tbody id="stock-table-body">
+          <tr><td colspan="5" style="text-align:center; padding:2rem; color:var(--text-muted);">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+
+  <script src="../js/api.js"></script>
+  <script>
+    // Low-stock threshold (items with stock below this are flagged)
+    const LOW_STOCK_THRESHOLD = 10;
+
+    // In-memory stock store: { itemId: { name, category, stock } }
+    // Seeded from the menu API — each item starts with a default stock value.
+    let stockData = {};
+
+    // ── Lifecycle ──────────────────────────────────────────────────────────────
+    window.addEventListener('load', async () => {
+      const user = await requireAuth('inventory');
+      if (!user) return;
+      populateNavbar(user);
+      await loadStock();
+    });
+
+    // ── Load stock (built from menu items) ────────────────────────────────────
+    async function loadStock() {
+      try {
+        const menuItems = await apiFetch('/api/menu');
+
+        // Seed stockData only for items not already tracked
+        menuItems.forEach(item => {
+          if (!stockData[item.id]) {
+            stockData[item.id] = {
+              name:     item.name,
+              category: item.category,
+              stock:    50,   // default starting stock for new items
+            };
+          }
+        });
+
+        renderStats();
+        renderTable();
+        renderAlertBanner();
+      } catch (err) {
+        showToast('Could not load menu items: ' + err.message, 'error');
+      }
+    }
+
+    // ── Render summary stats ──────────────────────────────────────────────────
+    function renderStats() {
+      const items  = Object.values(stockData);
+      const low    = items.filter(i => i.stock > 0 && i.stock < LOW_STOCK_THRESHOLD);
+      const out    = items.filter(i => i.stock === 0);
+      const ok     = items.filter(i => i.stock >= LOW_STOCK_THRESHOLD);
+
+      document.getElementById('stat-total').textContent = items.length;
+      document.getElementById('stat-ok').textContent    = ok.length;
+      document.getElementById('stat-low').textContent   = low.length;
+      document.getElementById('stat-out').textContent   = out.length;
+    }
+
+    // ── Render low-stock alert banner ──────────────────────────────────────────
+    function renderAlertBanner() {
+      const low = Object.values(stockData).filter(i => i.stock < LOW_STOCK_THRESHOLD);
+      const banner = document.getElementById('low-stock-banner');
+      if (low.length > 0) {
+        banner.classList.remove('hidden');
+        document.getElementById('low-stock-names').textContent =
+          low.map(i => `${i.name} (${i.stock} left)`).join(', ');
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    // ── Render stock table ─────────────────────────────────────────────────────
+    function renderTable() {
+      const tbody = document.getElementById('stock-table-body');
+
+      const entries = Object.entries(stockData);
+      if (entries.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:2rem; color:var(--text-muted);">No items found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = entries.map(([id, item]) => {
+        let statusBadge;
+        if (item.stock === 0) {
+          statusBadge = '<span class="badge badge-rejected">Out of Stock</span>';
+        } else if (item.stock < LOW_STOCK_THRESHOLD) {
+          statusBadge = '<span class="badge badge-placed">⚠️ Low Stock</span>';
+        } else {
+          statusBadge = '<span class="badge badge-delivered">OK</span>';
+        }
+
+        return `
+          <tr id="row-${id}">
+            <td><strong>${item.name}</strong></td>
+            <td style="color:var(--text-muted); font-size:0.85rem;">${item.category}</td>
+            <td>
+              <span id="stock-val-${id}" style="font-size:1.05rem; font-weight:600;">${item.stock}</span>
+            </td>
+            <td>${statusBadge}</td>
+            <td>
+              <div style="display:flex; gap:0.5rem; align-items:center;">
+                <input type="number" id="input-${id}" min="0" value="${item.stock}"
+                       style="width:80px; padding:0.3rem 0.5rem; border-radius:6px;
+                              border:1px solid var(--border); background:var(--surface-2);
+                              color:var(--text); font-size:0.85rem;" />
+                <button class="btn btn-primary btn-sm" onclick="updateStock(${id})">Update</button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    // ── Update stock for an item ───────────────────────────────────────────────
+    function updateStock(id) {
+      const input = document.getElementById(`input-${id}`);
+      const newVal = parseInt(input.value);
+      if (isNaN(newVal) || newVal < 0) {
+        showToast('Please enter a valid stock quantity.', 'error');
+        return;
+      }
+      stockData[id].stock = newVal;
+      renderStats();
+      renderTable();
+      renderAlertBanner();
+      showToast(`✅ Stock updated for ${stockData[id].name} to ${newVal} units.`, 'success');
+    }
+  </script>
+</body>
+</html>
